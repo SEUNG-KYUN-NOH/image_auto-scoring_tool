@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이미지 품질 평가 시스템</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #f5f6f8;
+  --surface:  #ffffff;
+  --surface2: #f0f2f5;
+  --surface3: #e8eaed;
+  --border:   rgba(0,0,0,0.08);
+  --border2:  rgba(0,0,0,0.14);
+  --text:     #1a1c20;
+  --text2:    #6b7280;
+  --text3:    #a8adb8;
+  --accent:        #2563eb;
+  --accent-dim:    rgba(37,99,235,0.07);
+  --accent-border: rgba(37,99,235,0.22);
+  --green:         #16a34a;
+  --green-dim:     rgba(22,163,74,0.08);
+  --green-border:  rgba(22,163,74,0.22);
+  --amber:         #d97706;
+  --amber-dim:     rgba(217,119,6,0.08);
+  --amber-border:  rgba(217,119,6,0.22);
+  --red:           #dc2626;
+  --red-dim:       rgba(220,38,38,0.07);
+  --red-border:    rgba(220,38,38,0.2);
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Pretendard', sans-serif;
+  --radius: 8px;
+  --radius-lg: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.6; }
+body { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; height: 52px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--accent); display: flex; align-items: center; justify-content: center;
+}
+.logo-mark svg { width: 14px; height: 14px; fill: white; }
+.logo-name { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
+.logo-version {
+  font-family: var(--mono); font-size: 10px; color: var(--text3);
+  background: var(--surface2); padding: 2px 6px; border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.steps { display: flex; align-items: center; gap: 2px; }
+.step-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 6px;
+  cursor: pointer; transition: all 0.15s;
+  color: var(--text3); font-size: 12px; font-weight: 500;
+}
+.step-item:hover { background: var(--surface2); color: var(--text2); }
+.step-item.active { background: var(--accent-dim); color: var(--accent); }
+.step-item.done { color: var(--green); }
+.step-num {
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; font-family: var(--mono);
+  background: var(--surface2); color: var(--text3);
+  border: 1px solid var(--border);
+}
+.step-item.active .step-num { background: var(--accent); color: #fff; border-color: var(--accent); }
+.step-item.done .step-num { background: var(--green-dim); color: var(--green); border-color: var(--green-border); }
+.step-sep { color: var(--text3); font-size: 10px; padding: 0 2px; }
+
+.credit-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 11px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface2);
+  font-size: 11px; font-family: var(--mono);
+}
+.credit-bar { width: 48px; height: 3px; border-radius: 2px; background: var(--surface3); overflow: hidden; }
+.credit-fill { height: 100%; border-radius: 2px; background: var(--accent); width: 30%; transition: width 0.4s; }
+.credit-label { color: var(--text3); }
+.credit-val { color: var(--accent); font-weight: 500; }
+
+/* ── LAYOUT ── */
+.layout { display: flex; flex: 1; height: calc(100vh - 52px); }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 200px; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  display: flex; flex-direction: column;
+}
+.sidebar-inner { padding: 16px; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.sidebar-section-label {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.08em;
+  color: var(--text3); text-transform: uppercase; margin-bottom: 8px;
+}
+.stat-grid { display: flex; flex-direction: column; gap: 6px; }
+.stat-card {
+  padding: 10px 12px; border-radius: var(--radius);
+  background: var(--surface2); border: 1px solid var(--border);
+}
+.stat-label { font-size: 10px; color: var(--text2); margin-bottom: 3px; }
+.stat-val { font-size: 22px; font-weight: 600; font-family: var(--mono); line-height: 1.1; }
+.stat-val.blue  { color: var(--accent); }
+.stat-val.green { color: var(--green); }
+.stat-val.red   { color: var(--red); }
+.stat-val.amber { color: var(--amber); }
+
+.api-usage { padding: 12px; border-radius: var(--radius); background: var(--surface2); border: 1px solid var(--border); }
+.api-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.api-used { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--accent); }
+.api-total { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+.api-bar-wrap { height: 3px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+.api-bar-fill { height: 100%; background: var(--accent); width: 30%; border-radius: 2px; transition: width 0.5s; }
+.api-hint { font-size: 10px; color: var(--text3); margin-top: 6px; }
+
+.sidebar-nav { display: flex; flex-direction: column; gap: 2px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border); }
+.nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 6px;
+  cursor: pointer; color: var(--text3); font-size: 12px; transition: all 0.15s;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text2); }
+.nav-item.active { background: var(--accent-dim); color: var(--accent); }
+.nav-icon { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ── MAIN ── */
+.main { flex: 1; overflow-y: auto; background: var(--bg); display: flex; flex-direction: column; }
+
+.tab-bar {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px; background: var(--surface);
+  position: sticky; top: 0; z-index: 10;
+}
+.tab {
+  padding: 13px 16px; font-size: 12px; font-weight: 500;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  color: var(--text3); transition: all 0.15s; white-space: nowrap;
+}
+.tab:hover { color: var(--text2); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.content { padding: 24px; flex: 1; }
+
+/* ── SCREENS ── */
+.screen { display: none; flex-direction: column; gap: 20px; animation: fadeIn 0.2s ease; }
+.screen.visible { display: flex; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Upload zone */
+.upload-zone {
+  border: 1.5px dashed var(--border2); border-radius: var(--radius-lg);
+  padding: 32px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  cursor: pointer; transition: all 0.2s; background: var(--surface);
+}
+.upload-zone:hover { border-color: var(--accent-border); background: var(--accent-dim); }
+.upload-zone.dragover { border-color: var(--accent); background: var(--accent-dim); }
+.upload-ico {
+  width: 40px; height: 40px; border-radius: var(--radius);
+  background: var(--accent-dim); display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--accent-border);
+}
+.upload-ico svg { width: 18px; height: 18px; stroke: var(--accent); fill: none; stroke-width: 1.5; }
+.upload-title { font-size: 13px; font-weight: 500; color: var(--text); }
+.upload-sub { font-size: 11px; color: var(--text3); }
+
+.divider { display: flex; align-items: center; gap: 12px; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.divider-text { font-size: 11px; color: var(--text3); }
+
+/* Tables */
+.table-wrap { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface); }
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th {
+  text-align: left; padding: 8px 12px; background: var(--surface2);
+  color: var(--text3); font-weight: 600; border-bottom: 1px solid var(--border);
+  font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+}
+.data-table td {
+  padding: 9px 12px; border-bottom: 1px solid var(--border);
+  color: var(--text2); font-family: var(--mono); font-size: 12px;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: var(--surface2); }
+.data-table td.name { font-family: var(--sans); color: var(--text); }
+.data-table td.url { color: var(--accent); font-size: 11px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Mode cards */
+.section-label { font-size: 11px; font-weight: 500; color: var(--text2); margin-bottom: 10px; }
+.mode-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.mode-card {
+  padding: 13px 14px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--surface);
+  cursor: pointer; transition: all 0.15s;
+}
+.mode-card:hover { border-color: var(--border2); background: var(--surface2); }
+.mode-card.selected { border-color: var(--accent-border); background: var(--accent-dim); }
+.mode-title { font-size: 12px; font-weight: 500; margin-bottom: 2px; color: var(--text); }
+.mode-sub { font-size: 11px; color: var(--text3); }
+.mode-card.selected .mode-title { color: var(--accent); }
+.mode-card.selected .mode-sub  { color: var(--accent); opacity: .7; }
+
+/* Buttons */
+.action-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.btn {
+  padding: 7px 16px; border-radius: var(--radius);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  font-family: var(--sans); transition: all 0.15s; border: 1px solid transparent;
+}
+.btn-ghost { background: transparent; color: var(--text2); border-color: var(--border2); }
+.btn-ghost:hover { background: var(--surface2); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-danger { background: var(--red-dim); color: var(--red); border-color: var(--red-border); }
+.btn-success { background: var(--green-dim); color: var(--green); border-color: var(--green-border); }
+
+/* Progress */
+.progress-card {
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); padding: 20px;
+}
+.progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.progress-title { font-size: 14px; font-weight: 500; }
+.status-badge {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  padding: 3px 9px; border-radius: 4px; letter-spacing: .02em;
+}
+.status-running { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+.status-done    { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
+.status-stopped { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber-border); }
+
+.prog-bar-track { height: 4px; background: var(--surface3); border-radius: 2px; margin-bottom: 10px; overflow: hidden; }
+.prog-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
+.prog-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-bottom: 16px; font-family: var(--mono); }
+
+.log-wrap {
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface2); padding: 12px 14px;
+  max-height: 180px; overflow-y: auto;
+  font-family: var(--mono); font-size: 11px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.log-line { display: flex; gap: 12px; }
+.log-ts   { color: var(--text3); min-width: 56px; flex-shrink: 0; }
+.log-ok   { color: var(--green); }
+.log-skip { color: var(--amber); }
+.log-spin { color: var(--accent); }
+.log-err  { color: var(--red); }
+
+/* Results */
+.filter-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.filter-chip {
+  padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 500;
+  cursor: pointer; border: 1px solid var(--border); color: var(--text3);
+  background: var(--surface); transition: all 0.15s; font-family: var(--sans);
+}
+.filter-chip:hover { border-color: var(--border2); color: var(--text2); }
+.filter-chip.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-border); }
+.search-box {
+  padding: 6px 12px; border-radius: var(--radius); font-size: 12px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); font-family: var(--sans); outline: none; min-width: 180px;
+  transition: border-color 0.15s;
+}
+.search-box:focus { border-color: var(--accent-border); }
+.search-box::placeholder { color: var(--text3); }
+
+.results-wrap { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface); }
+.results-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.results-table th {
+  text-align: left; padding: 9px 14px; background: var(--surface2);
+  color: var(--text3); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.results-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.results-table tr:last-child td { border-bottom: none; }
+.results-table tr:hover td { background: var(--surface2); }
+
+.prod-cell { display: flex; align-items: center; gap: 10px; }
+.prod-thumb {
+  width: 36px; height: 36px; border-radius: 6px;
+  background: var(--surface2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.prod-name { font-size: 12px; font-weight: 500; color: var(--text); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prod-id   { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+
+.score-cell { text-align: center; }
+.score-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 22px; border-radius: 4px;
+  font-size: 12px; font-weight: 600; font-family: var(--mono);
+}
+.s2   { background: #dcfce7; color: #15803d; }
+.s1   { background: #fef3c7; color: #92400e; }
+.s0   { background: #fee2e2; color: #991b1b; }
+.s-nil{ background: var(--surface2); color: var(--text3); }
+
+.gate-ok    { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; background: #dcfce7; color: #15803d; }
+.gate-fatal { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; background: #fee2e2; color: #991b1b; }
+
+.total-cell { display: flex; align-items: center; gap: 6px; }
+.total-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.total-num  { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+.t-high .total-dot { background: var(--green); }
+.t-high .total-num { color: var(--green); }
+.t-mid  .total-dot { background: var(--amber); }
+.t-mid  .total-num { color: var(--amber); }
+.t-low  .total-dot { background: var(--red); }
+.t-low  .total-num { color: var(--red); }
+
+.reason { font-size: 11px; color: var(--text3); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+
+/* Settings */
+.settings-block { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden; }
+.settings-block-title {
+  padding: 11px 16px; background: var(--surface2);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text3);
+  border-bottom: 1px solid var(--border);
+}
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--border); }
+.setting-row:last-child { border-bottom: none; }
+.setting-info { display: flex; flex-direction: column; gap: 2px; }
+.setting-name { font-size: 13px; color: var(--text); }
+.setting-desc { font-size: 11px; color: var(--text3); }
+.setting-select {
+  padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--text); font-size: 12px; font-family: var(--sans); cursor: pointer; outline: none;
+}
+.toggle { width: 36px; height: 20px; border-radius: 10px; background: var(--surface3); border: 1px solid var(--border2); position: relative; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+.toggle.on { background: var(--accent); border-color: var(--accent); }
+.toggle-thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: white; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+.toggle.on .toggle-thumb { left: 18px; }
+
+/* Analysis */
+.analysis-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+.analysis-chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.chart-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); padding: 16px; }
+.chart-title { font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 14px; }
+
+.bar-chart { display: flex; flex-direction: column; gap: 11px; }
+.bar-item { display: flex; align-items: center; gap: 10px; }
+.bar-label { font-size: 11px; color: var(--text3); width: 56px; flex-shrink: 0; text-align: right; }
+.bar-track { flex: 1; height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+.bar-fill  { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+.bar-val   { font-family: var(--mono); font-size: 11px; color: var(--text2); width: 24px; flex-shrink: 0; }
+
+.pattern-list2 { display: flex; flex-direction: column; gap: 8px; }
+.pattern-item2 {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--surface); transition: border-color 0.15s;
+}
+.pattern-item2:hover { border-color: var(--border2); }
+.pattern-icon2 { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; font-style: normal; }
+.pattern-body2 { flex: 1; min-width: 0; }
+.pattern-title2 { font-size: 12px; font-weight: 500; margin-bottom: 3px; color: var(--text); }
+.pattern-desc2  { font-size: 11px; color: var(--text3); line-height: 1.5; }
+.p-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 3px; flex-shrink: 0; margin-top: 1px; font-family: var(--mono); }
+.p-urgent { background: #fee2e2; color: #991b1b; }
+.p-sensor { background: #fef3c7; color: #92400e; }
+.p-guide  { background: #dcfce7; color: #15803d; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+
+@media (max-width:900px) {
+  .sidebar { display: none; }
+  .analysis-grid { grid-template-columns: repeat(2,1fr); }
+  .analysis-chart-row { grid-template-columns: 1fr; }
+  .mode-grid { grid-template-columns: 1fr; }
+  .steps { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 14 14"><rect x="1" y="1" width="5" height="5" rx="1"/><rect x="8" y="1" width="5" height="5" rx="1"/><rect x="1" y="8" width="5" height="5" rx="1"/><circle cx="10.5" cy="10.5" r="2.5"/></svg>
+    </div>
+    <span class="logo-name">이미지 품질 평가</span>
+    <span class="logo-version">v1.0.0</span>
+  </div>
+
+  <div class="steps">
+    <div class="step-item done" id="step1" onclick="goStep(1)"><div class="step-num" id="snum1">✓</div><span>입력</span></div>
+    <span class="step-sep">›</span>
+    <div class="step-item active" id="step2" onclick="goStep(2)"><div class="step-num" id="snum2">2</div><span>평가 진행</span></div>
+    <span class="step-sep">›</span>
+    <div class="step-item" id="step3" onclick="goStep(3)"><div class="step-num" id="snum3">3</div><span>결과</span></div>
+  </div>
+
+  <div class="credit-pill">
+    <span class="credit-label">API</span>
+    <div class="credit-bar"><div class="credit-fill" id="credit-bar-fill"></div></div>
+    <span class="credit-val" id="credit-used">6</span>
+    <span class="credit-label">/ 20</span>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-inner">
+      <div>
+        <div class="sidebar-section-label">이번 배치</div>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">총 이미지</div><div class="stat-val blue" id="s-total">8</div></div>
+          <div class="stat-card"><div class="stat-label">평가 완료</div><div class="stat-val green" id="s-done">5</div></div>
+          <div class="stat-card"><div class="stat-label">결함 감지</div><div class="stat-val red" id="s-fatal">1</div></div>
+          <div class="stat-card"><div class="stat-label">진행 중</div><div class="stat-val amber" id="s-prog">3</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="sidebar-section-label">API 크레딧</div>
+        <div class="api-usage">
+          <div class="api-row">
+            <span class="api-used" id="api-used-big">6</span>
+            <span class="api-total">/ 20 오늘</span>
+          </div>
+          <div class="api-bar-wrap"><div class="api-bar-fill" id="api-bar-big"></div></div>
+          <div class="api-hint">Gemini 2.5 Flash 기준</div>
+        </div>
+      </div>
+      <div class="sidebar-nav">
+        <div class="nav-item active" onclick="switchNav(this,'run')">
+          <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="3,2 11,7 3,12"/></svg>평가 실행
+        </div>
+        <div class="nav-item" onclick="switchNav(this,'analysis')">
+          <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="8" width="3" height="5" rx="1"/><rect x="5.5" y="5" width="3" height="8" rx="1"/><rect x="10" y="2" width="3" height="11" rx="1"/></svg>분석
+        </div>
+        <div class="nav-item" onclick="switchNav(this,'settings')">
+          <svg class="nav-icon" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="2"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.9 2.9l1.4 1.4M9.7 9.7l1.4 1.4M2.9 11.1l1.4-1.4M9.7 4.3l1.4-1.4"/></svg>설정
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN: RUN -->
+  <div class="main" id="main-run">
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab(this,'input')">입력</div>
+      <div class="tab" onclick="switchTab(this,'progress')">평가 진행</div>
+      <div class="tab" onclick="switchTab(this,'results')">결과</div>
+    </div>
+    <div class="content">
+
+      <!-- INPUT -->
+      <div class="screen visible" id="sc-input">
+        <div class="upload-zone" id="upload-zone"
+          ondragover="event.preventDefault();this.classList.add('dragover')"
+          ondragleave="this.classList.remove('dragover')"
+          ondrop="handleDrop(event)" onclick="simulateUpload()">
+          <div class="upload-ico">
+            <svg viewBox="0 0 20 20"><path d="M10 13V4m0 0L7 7m3-3 3 3M3 14v1a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1"/></svg>
+          </div>
+          <div class="upload-title">CSV 파일을 드래그하거나 클릭하여 업로드</div>
+          <div class="upload-sub">product_id, product_name, image_url 컬럼 필수</div>
+        </div>
+
+        <div class="divider"><span class="divider-text">또는 직접 입력</span></div>
+
+        <div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr>
+                <th style="width:36px">#</th>
+                <th>product_id</th>
+                <th>product_name</th>
+                <th>image_url</th>
+                <th style="width:40px"></th>
+              </tr></thead>
+              <tbody id="manual-tbody">
+                <tr>
+                  <td>1</td>
+                  <td><input style="background:transparent;border:none;outline:none;font-family:var(--mono);font-size:12px;color:var(--text);width:100%;min-width:80px" placeholder="688464776"></td>
+                  <td class="name"><input style="background:transparent;border:none;outline:none;font-family:var(--sans);font-size:12px;color:var(--text);width:100%;min-width:120px" placeholder="이츠웰 쇠고기다시 1kg"></td>
+                  <td class="url"><input style="background:transparent;border:none;outline:none;font-family:var(--mono);font-size:11px;color:var(--accent);width:100%;min-width:160px" placeholder="https://..."></td>
+                  <td><span style="color:var(--text3);cursor:pointer;font-size:14px;padding:2px 4px" onclick="this.closest('tr').remove()">×</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top:8px">
+            <button class="btn btn-ghost" style="font-size:11px;padding:5px 12px" onclick="addManualRow()">+ 행 추가</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-label">평가 모드 선택</div>
+          <div class="mode-grid">
+            <div class="mode-card selected" onclick="selectMode(this)">
+              <div class="mode-title">센서 + AI</div>
+              <div class="mode-sub">로컬 필터 후 API 호출</div>
+            </div>
+            <div class="mode-card" onclick="selectMode(this)">
+              <div class="mode-title">AI 전용</div>
+              <div class="mode-sub">Gemini 직접 평가</div>
+            </div>
+            <div class="mode-card" onclick="selectMode(this)">
+              <div class="mode-title">센서 전용</div>
+              <div class="mode-sub">API 없이 기초 필터</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="btn btn-ghost" onclick="resetAll()">초기화</button>
+          <button class="btn btn-primary" onclick="startEval()">평가 시작 →</button>
+        </div>
+      </div>
+
+      <!-- PROGRESS -->
+      <div class="screen" id="sc-progress">
+        <div class="progress-card">
+          <div class="progress-header">
+            <div class="progress-title">평가 파이프라인 실행 중</div>
+            <div class="status-badge status-running" id="prog-badge">RUNNING</div>
+          </div>
+          <div class="prog-bar-track"><div class="prog-bar-fill" id="prog-bar" style="width:62%"></div></div>
+          <div class="prog-meta">
+            <span id="prog-label">5 / 8 완료</span>
+            <span id="prog-time">예상 남은 시간: ~36초</span>
+          </div>
+          <div class="log-wrap" id="prog-log">
+            <div class="log-line"><span class="log-ts">14:23:01</span><span class="log-ok">✓ #688464776 — 평가 완료 (인지성 2, 품질 1, 클릭 2)</span></div>
+            <div class="log-line"><span class="log-ts">14:23:03</span><span class="log-skip">⚠ #123456789 — 치명적 결함 감지 (도매 포장) → 0점 처리</span></div>
+            <div class="log-line"><span class="log-ts">14:23:06</span><span class="log-ok">✓ #987654321 — 평가 완료 (인지성 1, 품질 2, 클릭 1)</span></div>
+            <div class="log-line"><span class="log-ts">14:23:09</span><span class="log-ok">✓ #234567890 — 평가 완료 (인지성 2, 품질 2, 클릭 2)</span></div>
+            <div class="log-line"><span class="log-ts">14:23:11</span><span class="log-ok">✓ #345678901 — 평가 완료 (인지성 1, 품질 1, 클릭 0)</span></div>
+            <div class="log-line"><span class="log-ts">14:23:14</span><span class="log-spin">⟳ #456789012 — Gatekeeper 호출 중...</span></div>
+            <div class="log-line"><span class="log-ts">14:23:14</span><span class="log-spin">⟳ #567890123 — 이미지 다운로드 중...</span></div>
+            <div class="log-line"><span class="log-ts">14:23:14</span><span class="log-spin">⟳ #678901234 — 센서 분석 중...</span></div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-danger" onclick="stopEval()">중단</button>
+          <button class="btn btn-success" id="goto-results-btn" style="display:none" onclick="gotoResults()">결과 보기 →</button>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div class="screen" id="sc-results">
+        <div class="filter-bar">
+          <input class="search-box" placeholder="상품명 검색..." id="search-box" oninput="filterResults()">
+          <button class="filter-chip active" onclick="setFilter(this,'all')">전체 (8)</button>
+          <button class="filter-chip" onclick="setFilter(this,'pass')">통과 (7)</button>
+          <button class="filter-chip" onclick="setFilter(this,'fatal')">결함 (1)</button>
+          <button class="filter-chip" onclick="setFilter(this,'high')">고득점 5–6점</button>
+        </div>
+
+        <div class="results-wrap">
+          <table class="results-table">
+            <thead><tr>
+              <th>상품</th><th>게이트</th>
+              <th style="text-align:center">인지성</th>
+              <th style="text-align:center">이미지품질</th>
+              <th style="text-align:center">클릭유도</th>
+              <th>합계</th><th>주요 사유</th>
+            </tr></thead>
+            <tbody id="results-tbody">
+              <tr data-gate="pass" data-total="5">
+                <td><div class="prod-cell"><div class="prod-thumb">🥩</div><div><div class="prod-name">이츠웰 쇠고기다시 1kg</div><div class="prod-id">688464776</div></div></div></td>
+                <td><span class="gate-ok">통과</span></td>
+                <td class="score-cell"><span class="score-pill s2">2</span></td>
+                <td class="score-cell"><span class="score-pill s1">1</span></td>
+                <td class="score-cell"><span class="score-pill s2">2</span></td>
+                <td><div class="total-cell t-high"><div class="total-dot"></div><span class="total-num">5</span></div></td>
+                <td><div class="reason">상품이 명확하게 인지됨</div></td>
+              </tr>
+              <tr data-gate="fatal" data-total="0">
+                <td><div class="prod-cell"><div class="prod-thumb">📦</div><div><div class="prod-name">업소용 20kg 포장재</div><div class="prod-id">123456789</div></div></div></td>
+                <td><span class="gate-fatal">결함</span></td>
+                <td class="score-cell"><span class="score-pill s0">0</span></td>
+                <td class="score-cell"><span class="score-pill s-nil">—</span></td>
+                <td class="score-cell"><span class="score-pill s-nil">—</span></td>
+                <td><div class="total-cell t-low"><div class="total-dot"></div><span class="total-num">0</span></div></td>
+                <td><div class="reason">도매 포장 이미지 감지</div></td>
+              </tr>
+              <tr data-gate="pass" data-total="4">
+                <td><div class="prod-cell"><div class="prod-thumb">🍬</div><div><div class="prod-name">과자 선물세트 5종</div><div class="prod-id">987654321</div></div></div></td>
+                <td><span class="gate-ok">통과</span></td>
+                <td class="score-cell"><span class="score-pill s1">1</span></td>
+                <td class="score-cell"><span class="score-pill s2">2</span></td>
+                <td class="score-cell"><span class="score-pill s1">1</span></td>
+                <td><div class="total-cell t-mid"><div class="total-dot"></div><span class="total-num">4</span></div></td>
+                <td><div class="reason">배경이 다소 복잡함</div></td>
+              </tr>
+              <tr data-gate="pass" data-total="6">
+                <td><div class="prod-cell"><div class="prod-thumb">🍳</div><div><div class="prod-name">냄비 세트 스테인리스 5종</div><div class="prod-id">234567890</div></div></div></td>
+                <td><span class="gate-ok">통과</span></td>
+                <td class="score-cell"><span class="score-pill s2">2</span></td>
+                <td class="score-cell"><span class="score-pill s2">2</span></td>
+                <td class="score-cell"><span class="score-pill s2">2</span></td>
+                <td><div class="total-cell t-high"><div class="total-dot"></div><span class="total-num">6</span></div></td>
+                <td><div class="reason">스튜디오급, 클릭 유도 우수</div></td>
+              </tr>
+              <tr data-gate="pass" data-total="2">
+                <td><div class="prod-cell"><div class="prod-thumb">👕</div><div><div class="prod-name">기모 맨투맨 기본형</div><div class="prod-id">345678901</div></div></div></td>
+                <td><span class="gate-ok">통과</span></td>
+                <td class="score-cell"><span class="score-pill s1">1</span></td>
+                <td class="score-cell"><span class="score-pill s1">1</span></td>
+                <td class="score-cell"><span class="score-pill s0">0</span></td>
+                <td><div class="total-cell t-low"><div class="total-dot"></div><span class="total-num">2</span></div></td>
+                <td><div class="reason">색상 칙칙, 배경 어두움</div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="action-row">
+          <button class="btn btn-ghost" onclick="goStep(1)">← 새 배치</button>
+          <button class="btn btn-primary">CSV 다운로드</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN: ANALYSIS -->
+  <div class="main" id="main-analysis" style="display:none">
+    <div class="tab-bar"><div class="tab active">패턴 분석</div></div>
+    <div class="content" style="display:flex;flex-direction:column;gap:20px">
+      <div class="analysis-grid">
+        <div class="stat-card"><div class="stat-label">평균 총점</div><div class="stat-val blue">3.4</div></div>
+        <div class="stat-card"><div class="stat-label">최약점 항목</div><div class="stat-val red" style="font-size:16px">클릭유도</div></div>
+        <div class="stat-card"><div class="stat-label">결함 감지율</div><div class="stat-val amber" style="font-size:18px">12.5%</div></div>
+        <div class="stat-card"><div class="stat-label">만점 비율</div><div class="stat-val green" style="font-size:18px">20%</div></div>
+      </div>
+      <div class="analysis-chart-row">
+        <div class="chart-card">
+          <div class="chart-title">항목별 평균 점수</div>
+          <div class="bar-chart">
+            <div class="bar-item"><span class="bar-label">인지성</span><div class="bar-track"><div class="bar-fill" style="width:70%;background:#2563eb"></div></div><span class="bar-val">1.4</span></div>
+            <div class="bar-item"><span class="bar-label">이미지품질</span><div class="bar-track"><div class="bar-fill" style="width:75%;background:#2563eb"></div></div><span class="bar-val">1.5</span></div>
+            <div class="bar-item"><span class="bar-label">클릭유도</span><div class="bar-track"><div class="bar-fill" style="width:50%;background:#dc2626"></div></div><span class="bar-val">1.0</span></div>
+            <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:2px">
+              <div class="bar-item"><span class="bar-label" style="color:var(--text2)">합산 평균</span><div class="bar-track"><div class="bar-fill" style="width:56%;background:rgba(37,99,235,0.35)"></div></div><span class="bar-val" style="color:var(--text2)">3.4</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">점수대 분포</div>
+          <div style="display:flex;flex-direction:column;gap:11px">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:5px"><span>고득점 5–6점</span><span style="font-family:var(--mono);color:var(--green)">2건 (25%)</span></div>
+              <div class="bar-track" style="height:8px"><div class="bar-fill" style="width:25%;background:var(--green)"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:5px"><span>중간 3–4점</span><span style="font-family:var(--mono);color:var(--amber)">2건 (25%)</span></div>
+              <div class="bar-track" style="height:8px"><div class="bar-fill" style="width:25%;background:var(--amber)"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:5px"><span>저득점 0–2점</span><span style="font-family:var(--mono);color:var(--red)">4건 (50%)</span></div>
+              <div class="bar-track" style="height:8px"><div class="bar-fill" style="width:50%;background:var(--red)"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="section-label" style="margin-bottom:12px">개선 필요 패턴</div>
+        <div class="pattern-list2">
+          <div class="pattern-item2" style="border-color:rgba(220,38,38,.2);background:#fff5f5">
+            <em class="pattern-icon2" style="background:#fee2e2">🖱</em>
+            <div class="pattern-body2">
+              <div class="pattern-title2" style="color:var(--red)">클릭유도성 전반 부족 — 평균 1.0점</div>
+              <div class="pattern-desc2">7건 중 4건이 1점 이하. 밝기가 낮고 레이아웃이 단조로운 이미지가 반복됨.</div>
+            </div>
+            <div class="p-badge p-urgent">즉시 개선</div>
+          </div>
+          <div class="pattern-item2">
+            <em class="pattern-icon2" style="background:#fef3c7">📦</em>
+            <div class="pattern-body2">
+              <div class="pattern-title2">도매·업소용 포장 이미지 혼입</div>
+              <div class="pattern-desc2">product_name에서 "kg 대용량", "업소용" 키워드 사전 스크리닝으로 API 없이 차단 가능.</div>
+            </div>
+            <div class="p-badge p-sensor">센서 처리</div>
+          </div>
+          <div class="pattern-item2">
+            <em class="pattern-icon2" style="background:#dcfce7">✓</em>
+            <div class="pattern-body2">
+              <div class="pattern-title2">만점 이미지 공통점 — TrainSet 등록 추천</div>
+              <div class="pattern-desc2">냄비 세트(6점): 흰 배경 + 정면 구도 + 텍스트 없음. 동일 유형은 캐시 처리 가능.</div>
+            </div>
+            <div class="p-badge p-guide">캐시 등록</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN: SETTINGS -->
+  <div class="main" id="main-settings" style="display:none">
+    <div class="tab-bar"><div class="tab active">설정</div></div>
+    <div class="content" style="display:flex;flex-direction:column;gap:14px">
+      <div class="settings-block">
+        <div class="settings-block-title">API 설정</div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">사용 모델</div><div class="setting-desc">Gemini API 모델 선택</div></div>
+          <select class="setting-select"><option>gemini-2.5-flash</option><option>gemini-2.5-pro</option><option>grok-2-vision</option></select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">동시 처리 수</div><div class="setting-desc">asyncio.gather 동시성</div></div>
+          <select class="setting-select"><option>5</option><option selected>10</option><option>20</option></select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">API 실패 시 재시도</div><div class="setting-desc">오류 발생 시 자동 재시도</div></div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+      </div>
+      <div class="settings-block">
+        <div class="settings-block-title">이미지 센서</div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">로컬 센서 활성화</div><div class="setting-desc">API 호출 전 사전 필터링</div></div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">최소 해상도</div><div class="setting-desc">기준 미만 즉시 0점 처리</div></div>
+          <select class="setting-select"><option>100×100</option><option selected>200×200</option><option>300×300</option></select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">블러 감지 임계값</div><div class="setting-desc">Laplacian 분산 기준</div></div>
+          <select class="setting-select"><option>30</option><option selected>50</option><option>80</option></select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">밝기 필터</div><div class="setting-desc">너무 어둡거나 밝은 이미지</div></div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+      </div>
+      <div class="settings-block">
+        <div class="settings-block-title">TrainSet 캐시</div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">캐시 사용</div><div class="setting-desc">기존 평가 결과 재사용</div></div>
+          <div class="toggle on" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-name">등록된 캐시</div><div class="setting-desc">현재 TrainSet 이미지 수</div></div>
+          <span style="font-family:var(--mono);font-size:13px;color:var(--green)">0 건</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let progInterval = null;
+
+function goStep(n) {
+  [1,2,3].forEach(i => {
+    const el = document.getElementById('step'+i);
+    const num = document.getElementById('snum'+i);
+    el.classList.remove('active','done');
+    if (i < n) { el.classList.add('done'); num.textContent = '✓'; }
+    else if (i === n) { el.classList.add('active'); num.textContent = i; }
+    else { num.textContent = i; }
+  });
+  const tabs = document.querySelectorAll('#main-run .tab');
+  if (n === 1) { showScreen('sc-input');    tabs.forEach((t,i)=>t.classList.toggle('active',i===0)); }
+  if (n === 2) { showScreen('sc-progress'); tabs.forEach((t,i)=>t.classList.toggle('active',i===1)); }
+  if (n === 3) { showScreen('sc-results');  tabs.forEach((t,i)=>t.classList.toggle('active',i===2)); }
+}
+
+function switchTab(el, name) {
+  document.querySelectorAll('#main-run .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  if (name==='input')    { showScreen('sc-input');    goStep(1); }
+  if (name==='progress') { showScreen('sc-progress'); goStep(2); }
+  if (name==='results')  { showScreen('sc-results');  goStep(3); }
+}
+
+function showScreen(id) {
+  ['sc-input','sc-progress','sc-results'].forEach(s=>{
+    const el=document.getElementById(s);
+    if(el){ el.classList.remove('visible'); el.style.display='none'; }
+  });
+  const t=document.getElementById(id);
+  if(t){ t.style.display='flex'; setTimeout(()=>t.classList.add('visible'),10); }
+}
+
+function switchNav(el, panel) {
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  ['run','analysis','settings'].forEach(p=>{
+    const m=document.getElementById('main-'+p);
+    if(m) m.style.display = p===panel ? 'flex' : 'none';
+  });
+}
+
+function simulateUpload() {
+  const z=document.getElementById('upload-zone');
+  z.querySelector('.upload-title').textContent='✓  sample_products.csv 로드됨 (8행)';
+  z.querySelector('.upload-sub').textContent='클릭하여 다른 파일 선택';
+  z.style.borderColor='var(--accent-border)';
+  z.style.background='var(--accent-dim)';
+}
+function handleDrop(e){ e.preventDefault(); e.currentTarget.classList.remove('dragover'); simulateUpload(); }
+
+function addManualRow() {
+  const tbody=document.getElementById('manual-tbody');
+  const n=tbody.rows.length+1;
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td>${n}</td>
+    <td><input style="background:transparent;border:none;outline:none;font-family:var(--mono);font-size:12px;color:var(--text);width:100%;min-width:80px" placeholder=""></td>
+    <td class="name"><input style="background:transparent;border:none;outline:none;font-family:var(--sans);font-size:12px;color:var(--text);width:100%;min-width:120px" placeholder=""></td>
+    <td class="url"><input style="background:transparent;border:none;outline:none;font-family:var(--mono);font-size:11px;color:var(--accent);width:100%;min-width:160px" placeholder="https://..."></td>
+    <td><span style="color:var(--text3);cursor:pointer;font-size:14px;padding:2px 4px" onclick="this.closest('tr').remove()">×</span></td>`;
+  tbody.appendChild(tr);
+}
+
+function selectMode(el) {
+  document.querySelectorAll('.mode-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function resetAll() {
+  const z=document.getElementById('upload-zone');
+  z.querySelector('.upload-title').textContent='CSV 파일을 드래그하거나 클릭하여 업로드';
+  z.querySelector('.upload-sub').textContent='product_id, product_name, image_url 컬럼 필수';
+  z.style.borderColor=''; z.style.background='';
+}
+
+function startEval() {
+  goStep(2);
+  let pct=62, done=5; const total=8;
+  updateSidebar(total,done,1,total-done-1);
+  progInterval=setInterval(()=>{
+    pct=Math.min(100,pct+13); done=Math.min(total,done+1);
+    document.getElementById('prog-bar').style.width=pct+'%';
+    document.getElementById('prog-label').textContent=done+' / '+total+' 완료';
+    const rem=Math.max(0,Math.round((100-pct)/13*3));
+    document.getElementById('prog-time').textContent=rem>0?'예상 남은 시간: ~'+rem+'초':'마무리 중...';
+    updateSidebar(total,done,1,Math.max(0,total-done-1));
+    updateCredit(Math.min(20,6+(done-5)*2));
+    if(pct>=100){
+      clearInterval(progInterval); progInterval=null;
+      const b=document.getElementById('prog-badge');
+      b.textContent='DONE'; b.className='status-badge status-done';
+      document.getElementById('goto-results-btn').style.display='inline-block';
+      document.getElementById('prog-time').textContent='완료';
+      updateSidebar(total,done,1,0);
+    }
+  },700);
+}
+
+function stopEval() {
+  if(progInterval){ clearInterval(progInterval); progInterval=null; }
+  const b=document.getElementById('prog-badge');
+  b.textContent='STOPPED'; b.className='status-badge status-stopped';
+}
+
+function gotoResults() { goStep(3); }
+
+function updateSidebar(total,done,fatal,prog) {
+  document.getElementById('s-total').textContent=total;
+  document.getElementById('s-done').textContent=done;
+  document.getElementById('s-fatal').textContent=fatal;
+  document.getElementById('s-prog').textContent=prog;
+}
+
+function updateCredit(used) {
+  const pct=Math.round(used/20*100);
+  document.getElementById('credit-used').textContent=used;
+  document.getElementById('credit-bar-fill').style.width=pct+'%';
+  document.getElementById('api-used-big').textContent=used;
+  document.getElementById('api-bar-big').style.width=pct+'%';
+  document.getElementById('credit-used').style.color=used>15?'var(--red)':'var(--accent)';
+}
+
+function setFilter(el,type) {
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('#results-tbody tr').forEach(r=>{
+    const gate=r.dataset.gate, total=parseInt(r.dataset.total||0);
+    let show=true;
+    if(type==='pass') show=gate==='pass';
+    else if(type==='fatal') show=gate==='fatal';
+    else if(type==='high') show=total>=5;
+    r.style.display=show?'':'none';
+  });
+}
+
+function filterResults() {
+  const q=document.getElementById('search-box').value.toLowerCase();
+  document.querySelectorAll('#results-tbody tr').forEach(r=>{
+    const n=r.querySelector('.prod-name')?r.querySelector('.prod-name').textContent.toLowerCase():'';
+    r.style.display=n.includes(q)?'':'none';
+  });
+}
+</script>
+</body>
+</html>
